@@ -33,6 +33,17 @@ class Player(pygame.sprite.Sprite):
         self.screen_width = SCREEN_WIDTH
         self.screen_height = SCREEN_HEIGHT
         self.vidas=3
+        self.base_speed=4
+        self.speed_time=0
+        self.speed_mult=2
+        self.vidas_recolectadas=0
+        self.chico=0
+        self.normal=self.surf.get_size()
+        self.imagen=pygame.transform.scale(JorgePNG, (80, 80))
+        self.surf=self.imagen.copy()
+        self.velocidades_recolectadas=0
+        self.invencible=False
+        self.invencible_hasta=0
         
         # POR HACER (2.3): Crear lista de proyectiles
         self.projectiles=pygame.sprite.Group()
@@ -47,14 +58,17 @@ class Player(pygame.sprite.Sprite):
 
 
     def update(self, pressed_keys):
+        speed=self.base_speed
+        if pygame.time.get_ticks()<self.speed_time:
+            speed=int(self.base_speed*self.speed_mult)
         if pressed_keys[K_w]:
-            self.rect.move_ip(0, -4)
+            self.rect.move_ip(0, -speed)
         if pressed_keys[K_s]:
-            self.rect.move_ip(0, 4)
+            self.rect.move_ip(0, speed)
         if pressed_keys[K_a]:
-            self.rect.move_ip(-4, 0)
+            self.rect.move_ip(-speed, 0)
         if pressed_keys[K_d]:
-            self.rect.move_ip(4, 0)
+            self.rect.move_ip(speed, 0)
         
         if self.rect.left < 0:
             self.rect.left = 0
