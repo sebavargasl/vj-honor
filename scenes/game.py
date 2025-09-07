@@ -31,6 +31,11 @@ from elements.enemigo2 import Enemy2
 
 from elements.enemigo3 import Enemy3
 
+from elements.velocidad import Speed
+powerups=pygame.sprite.Group()
+
+from elements.vidaextra import Life
+
 from elements.boss import Boss
 
 from scenes.victoria import pantalla_victoria
@@ -42,6 +47,12 @@ def gameLoop():
     pygame.init()
     pygame.font.init()
     pygame.mixer.init()
+
+    fuente=pygame.font.SysFont("impact",30)
+    mensaje_vidas=""
+    vidas_tiempo=0
+    mensaje_velocidad=""
+    velocidad_tiempo=0
 
     SCREEN_WIDTH = 1000
     SCREEN_HEIGHT = 700
@@ -57,8 +68,10 @@ def gameLoop():
     if pygame.mixer.get_init():
         pygame.mixer.music.load("assets/musica/musica.mp3")
         pygame.mixer.music.play(-1)
-    
 
+    sonido_powerup=pygame.mixer.Sound("assets/musica/powerup.mp3")
+    sonido_disparo=pygame.mixer.Sound("assets/musica/disparo.mp3")
+    sonido_victoria=pygame.mixer.Sound("assets/musica/victoria.mp3")
 
     ''' Creamos y editamos la ventana de pygame (escena) '''
     ''' 1.-definir el tamaño de la ventana'''
@@ -83,6 +96,12 @@ def gameLoop():
 
     ADDENEMY3 = pygame.USEREVENT + 3
     pygame.time.set_timer(ADDENEMY3, 3000)
+
+    ADDPOWER=pygame.USEREVENT+4
+    pygame.time.set_timer(ADDPOWER, 6000)
+
+    ADDLIFE=pygame.USEREVENT+5
+    pygame.time.set_timer(ADDLIFE,9000)
 
     ''' 3.- creamos la instancia de jugador'''
     player = Player(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -154,8 +173,17 @@ def gameLoop():
         pressed_keys = pygame.key.get_pressed()
         player.update(pressed_keys)
         enemies.update()
+        powerups.update()
         #actualizar la mira con el movimiento
         mira.update()
+        if player.invencible and pygame.time.get_ticks()>player.invencible_hasta:
+            player.invencible=False
+        if player.chico != 0 and pygame.time.get_ticks()>player.chico:
+            a, b = player.normal
+            player.surf=pygame.transform.scale(player.imagen,(a,b))
+            centro=player.rect.center
+            player.rect=player.surf.get_rect(center=centro)
+            player.chico=0
         
         if aparicion_boss==True and boss!=0:
             boss.update()
@@ -207,7 +235,7 @@ def gameLoop():
         if muerte_boss==True:
             if pygame.time.get_ticks()-tiempo_victoria>=4000:
                 accion3= pantalla_victoria()
-                #hay que cambiar la musica a una de victoria
+                sonido_victoria.play()
                 if accion3=="jugar":
                     player=Player(SCREEN_WIDTH,SCREEN_HEIGHT)
                     enemies.empty()
@@ -264,12 +292,47 @@ def gameLoop():
                     pygame.mixer.music.play(-1)
                 else:
                     running=False
+        
+        choque2= pygame.sprite.spritecollideany(player, powerups)
+        if choque2:
+            if isinstance(choque2,Speed):
+                player.speed_time=pygame.time.get_ticks()+5000
+                player.velocidades_recolectadas += 1
+                if player.velocidades_recolectadas==5:
+                    player.velocidades_recolectadas=0
+                    player.invencible=True
+                    player.invencible_hasta=pygame.time.get_ticks()+5000
+                    mensaje_velocidad="5 boosts de velocidad: Inmune por 5 segundos!"
+                    velocidad_tiempo=pygame.time.get_ticks()+3000
+            elif isinstance(choque2, Life):
+                player.vidas += 1
+                player.vidas_recolectadas += 1
+                if player.vidas_recolectadas==3:
+                    player.vidas_recolectadas=0
+                    player.chico=pygame.time.get_ticks()+5000
+                    a, b=player.normal
+                    chico=pygame.transform.scale(player.imagen,(a//2,b//2))
+                    player.surf=chico
+                    centro=player.rect.center
+                    player.rect=player.surf.get_rect(center=centro)
+                    mensaje_vidas="3 vidas extra: Pequeño por 5 segundos!"
+                    vidas_tiempo=pygame.time.get_ticks()+3000
+            sonido_powerup.play()
+            choque2.kill()
             
         cronometro.imagen(screen)
 
         #dibujamos el puntaje abajo de los corazones
         score=letra_puntaje.render(f"Score: {puntaje}", True, (255,255,255))
         screen.blit(score, (10, 60))
+
+        if pygame.time.get_ticks()<vidas_tiempo and mensaje_vidas:
+            texto=fuente.render(mensaje_vidas,True,(255,0,255))
+            screen.blit(texto,(SCREEN_WIDTH//2-texto.get_width()//2,10))
+        
+        if pygame.time.get_ticks()<velocidad_tiempo and mensaje_velocidad:
+            texto2=fuente.render(mensaje_velocidad,True,(128,0,128))
+            screen.blit(texto2,(SCREEN_WIDTH//2-texto2.get_width()//2,SCREEN_HEIGHT-40))
 
         pygame.display.flip()
         
@@ -300,9 +363,20 @@ def gameLoop():
                 enemies.add(new_enemy)
                 all_sprites.add(new_enemy)
             
+            elif event.type==ADDPOWER:
+                s=Speed(SCREEN_WIDTH,SCREEN_HEIGHT)
+                powerups.add(s)
+                all_sprites.add(s)
+            
+            elif event.type==ADDLIFE:
+                v=Life(SCREEN_WIDTH,SCREEN_HEIGHT)
+                powerups.add(v)
+                all_sprites.add(v)
+            
             # POR HACER (2.4): Agregar evento disparo proyectil
             elif event.type==pygame.MOUSEBUTTONDOWN:
                 player.shoot(pygame.mouse.get_pos())
+                sonido_disparo.play()
 
 
         clock.tick(40)
